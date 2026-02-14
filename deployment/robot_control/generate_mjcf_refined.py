@@ -1,12 +1,10 @@
 import math
-
-import math
 import os
 
-def generate_scene_gyro():
+def generate_scene_refined():
     # Paths
     g1_path = "public/mujoco/menagerie/unitree_g1/g1.xml"
-    output_path = "public/mujoco/menagerie/unitree_g1/scene_gyro.xml"
+    output_path = "public/mujoco/menagerie/unitree_g1/scene_gyro_refined.xml"
 
     # Read G1 XML
     try:
@@ -193,38 +191,38 @@ def generate_scene_gyro():
     final_xml = g1_content
     
     # Assets (Floor Material)
-    floor_asset = """
+    floor_asset = \"\"\"
     <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300"/>
     <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
-    """
+    \"\"\"
     if '</asset>' in final_xml:
-        final_xml = final_xml.replace('</asset>', floor_asset + '\n  </asset>')
+        final_xml = final_xml.replace('</asset>', floor_asset + '\\n  </asset>')
     else:
-        final_xml = final_xml.replace('<worldbody>', f'<asset>{floor_asset}</asset>\n<worldbody>')
+        final_xml = final_xml.replace('<worldbody>', f'<asset>{floor_asset}</asset>\\n<worldbody>')
 
     # Worldbody: Floor + Gyro + Nodes
     floor_xml = '<geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>'
-    final_xml = final_xml.replace('<worldbody>', f'<worldbody>\n    {floor_xml}\n    {xml_body}\n    {xml_nodes}')
+    final_xml = final_xml.replace('<worldbody>', f'<worldbody>\\n    {floor_xml}\\n    {xml_body}\\n    {xml_nodes}')
     
     # Actuators
     if '</actuator>' in final_xml:
-        final_xml = final_xml.replace('</actuator>', xml_actuator + '\n  </actuator>')
+        final_xml = final_xml.replace('</actuator>', xml_actuator + '\\n  </actuator>')
     else:
-        final_xml = final_xml.replace('</mujoco>', f'<actuator>{xml_actuator}</actuator>\n</mujoco>')
+        final_xml = final_xml.replace('</mujoco>', f'<actuator>{xml_actuator}</actuator>\\n</mujoco>')
         
     # Tendons
     if xml_tendon:
         if '</tendon>' in final_xml:
-             final_xml = final_xml.replace('</tendon>', xml_tendon + '\n  </tendon>')
+             final_xml = final_xml.replace('</tendon>', xml_tendon + '\\n  </tendon>')
         else:
-             final_xml = final_xml.replace('</mujoco>', f'<tendon>{xml_tendon}</tendon>\n</mujoco>')
+             final_xml = final_xml.replace('</mujoco>', f'<tendon>{xml_tendon}</tendon>\\n</mujoco>')
 
     # Equality
     if xml_equality:
         if '</equality>' in final_xml:
-             final_xml = final_xml.replace('</equality>', xml_equality + '\n  </equality>')
+             final_xml = final_xml.replace('</equality>', xml_equality + '\\n  </equality>')
         else:
-             final_xml = final_xml.replace('</mujoco>', f'<equality>{xml_equality}</equality>\n</mujoco>')
+             final_xml = final_xml.replace('</mujoco>', f'<equality>{xml_equality}</equality>\\n</mujoco>')
 
     with open(output_path, "w") as f:
         f.write(final_xml)
@@ -232,4 +230,4 @@ def generate_scene_gyro():
     print(f"Generated Merged Scene: {output_path}")
 
 if __name__ == "__main__":
-    generate_scene_gyro()
+    generate_scene_refined()

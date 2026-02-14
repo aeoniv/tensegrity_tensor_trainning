@@ -9,22 +9,33 @@ import json
 import numpy as np
 
 # Path to the model
-MODEL_PATH = "public/mujoco/menagerie/unitree_g1/scene_puppet.xml"
+# 1. Docker Path
+DOCKER_PATH = "/app/mujoco/menagerie/unitree_g1/scene.xml"
+# 2. Local Relative Path (assuming script is in deployment/robot_control)
+LOCAL_PATH = os.path.join(os.path.dirname(__file__), "../../public/mujoco/menagerie/unitree_g1/scene.xml")
+
+MODEL_PATH = DOCKER_PATH if os.path.exists(DOCKER_PATH) else os.path.abspath(LOCAL_PATH)
 
 # Global set of connected clients
 connected_clients = set()
 
-async def broadcast_state(data):
+async def broadcast_state(model, data):
     if not connected_clients:
         return
         
     # Serialize state
+    # Extract Tensegrity Node Positions
+    tensegrity_state = {}
+    # We can optimize this by caching indices, but loop over nbody (small) is fine for now
+    for i in range(model.nbody):
+        name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, i)
+        if name and name.startswith("node_"):
+            tensegrity_state[name] = data.xpos[i].tolist()
+
     message = json.dumps({
         "time": data.time,
         "qpos": data.qpos.tolist(),
-        # Gyro/Accel data from torso IMU
-        "gyro": data.sensor('imu-torso-angular-velocity').data.tolist(),
-        "accel": data.sensor('imu-torso-linear-acceleration').data.tolist()
+        "tensegrity": tensegrity_state
     })
     
     # Broadcast to all
@@ -49,8 +60,6 @@ async def run_simulation(model, data):
         viewer = mujoco.viewer.launch_passive(model, data)
         # Enable Label ONLY for 'Selection' (The clicked object)
         viewer.opt.label = mujoco.mjtLabel.mjLABEL_SELECTION
-        # Enable Sensor Visualization
-        viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_SENSOR] = 1
         print("Native Viewer Launched.")
     except Exception:
         print("Running Headless (Viewer launch failed).")
@@ -79,7 +88,7 @@ async def run_simulation(model, data):
         # 500Hz might be too fast for WS if network is slow. 
         # Let's throttle to ~60Hz broadcast (every 8 steps roughly if dt=0.002)
         if steps % 8 == 0:
-            await broadcast_state(data)
+            await broadcast_state(model, data)
             
         # Log occasionally
         if steps % 500 == 0:
@@ -113,8 +122,15 @@ async def main_async():
         model = mujoco.MjModel.from_xml_path(resolved_path)
         data = mujoco.MjData(model)
         
-        async with websockets.serve(handler, "localhost", 8766):
-            print("WebSocket Server started on ws://localhost:8766")
+        print("Starting WebSocket Server on port 8765...")
+        
+        # Debug: Print Actuators
+        print(f"Model has {model.nu} actuators.")
+        for i in range(model.nu):
+            name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_ACTUATOR, i)
+            print(f" - Actuator {i}: {name}")
+
+        async with websockets.serve(handler, "0.0.0.0", 8765):
             await run_simulation(model, data)
 
     except asyncio.CancelledError:
@@ -131,10 +147,4 @@ def main():
         print("Simulation Stopped by User.")
 
 if __name__ == "__main__":
-    try:
-        # Windows-specific event loop policy to avoid ProactorEventLoop errors
-        if os.name == 'nt':
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        main()
-    except KeyboardInterrupt:
-        pass
+    main()

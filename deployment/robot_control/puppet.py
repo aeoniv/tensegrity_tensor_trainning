@@ -22,9 +22,7 @@ async def broadcast_state(data):
     message = json.dumps({
         "time": data.time,
         "qpos": data.qpos.tolist(),
-        # Gyro/Accel data from torso IMU
-        "gyro": data.sensor('imu-torso-angular-velocity').data.tolist(),
-        "accel": data.sensor('imu-torso-linear-acceleration').data.tolist()
+        # "qvel": data.qvel.tolist() # Add velocity if needed later
     })
     
     # Broadcast to all
@@ -49,8 +47,6 @@ async def run_simulation(model, data):
         viewer = mujoco.viewer.launch_passive(model, data)
         # Enable Label ONLY for 'Selection' (The clicked object)
         viewer.opt.label = mujoco.mjtLabel.mjLABEL_SELECTION
-        # Enable Sensor Visualization
-        viewer.opt.flags[mujoco.mjtVisFlag.mjVIS_SENSOR] = 1
         print("Native Viewer Launched.")
     except Exception:
         print("Running Headless (Viewer launch failed).")
@@ -131,10 +127,4 @@ def main():
         print("Simulation Stopped by User.")
 
 if __name__ == "__main__":
-    try:
-        # Windows-specific event loop policy to avoid ProactorEventLoop errors
-        if os.name == 'nt':
-            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        main()
-    except KeyboardInterrupt:
-        pass
+    main()

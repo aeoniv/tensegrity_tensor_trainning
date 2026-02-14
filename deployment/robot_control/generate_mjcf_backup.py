@@ -1,6 +1,4 @@
 import math
-
-import math
 import os
 
 def generate_scene_gyro():
